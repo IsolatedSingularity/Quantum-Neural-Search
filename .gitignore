@@ -1,6 +1,37 @@
 
+# Personal / workspace
 Jenova/
 audit-*.md
-
-# Copilot workspace instructions (personal)
 .github/copilot-instructions.md
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment
+.env
+*.env
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
