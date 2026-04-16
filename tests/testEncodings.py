@@ -88,3 +88,22 @@ def test_qlifRespondsToSpikes() -> None:
 
     # Traces should differ
     assert not np.allclose(resultSpikes["alpha"], resultNoSpikes["alpha"])
+
+
+def test_ncseConstantSignal() -> None:
+    """NCSE of a constant signal should yield zero entropy (no information)."""
+    constantSignal = np.ones(500)
+    ncse = calculateNcse(constantSignal)
+    # Constant signal has zero variance, entropy should be 0 or near 0
+    assert np.all(ncse <= 0.1), f"NCSE of constant signal too high: max={np.max(ncse):.4f}"
+
+
+def test_qlifIntegrationMemory() -> None:
+    """QLIF alpha[t+1] should depend on alpha[t] (integration memory)."""
+    spikeTrain = np.array([0, 1, 1, 1, 1, 0, 0, 0, 0, 0])
+    result = simulateQlif(spikeTrain)
+    alpha = result["alpha"]
+    # After repeated spikes, alpha should accumulate (not just depend on current spike)
+    # Check that alpha during spike sequence is monotonically increasing
+    spikeAlphas = alpha[2:5]  # indices 2,3,4 are during spike arrivals
+    assert np.all(np.diff(spikeAlphas) >= 0), "QLIF should integrate (accumulate) over spikes"

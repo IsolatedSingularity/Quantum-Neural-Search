@@ -7,15 +7,15 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License: Apache-2.0"></a>
 </p>
 
-![Master Brain Analysis](./Plots/master_brain_analysis.png)
+![Master Brain Analysis](./Plots/master_quantum_neuroscience.png)
 
 ## Objective
 
-This repository implements quantum algorithms for neuroscience applications: exact pattern search using Grover's algorithm and adaptive classification using variational quantum circuits. The system operates on a 33-region brain atlas with 4-qubit encoding, using synthetic EEG signals with physiologically realistic frequency bands (alpha, beta, theta, gamma).
+This repository implements quantum algorithms for neuroscience applications. It provides exact pattern search (Grover's algorithm) and adaptive classification (variational quantum circuits). The system operates on a 33-region brain atlas with 4-qubit encoding. Synthetic EEG signals with alpha, beta, theta, and gamma frequency bands serve as input.
 
-Neural state spaces scale as $2^N$ for $N$ feature qubits. Grover's algorithm searches this space in $O(\sqrt{N})$ oracle calls instead of $O(N)$, while the variational classifier learns decision boundaries through parametrized quantum gates optimized via gradient descent.
+For $N$ feature qubits, the search space has $S = 2^N$ states. Grover's algorithm finds target states in $O(\sqrt{S})$ oracle calls instead of $O(S)$. The variational classifier learns decision boundaries through parametrized gates, optimized via gradient descent.
 
-**Goal:** Demonstrate quantum search and classification on synthetic neural data, compare against classical baselines (SVM, Random Forest), and provide a modular codebase for quantum neuroscience experiments on near-term hardware.
+**Goal:** Demonstrate quantum search and classification on synthetic neural data. Compare against classical baselines (SVM, Random Forest) and provide a modular codebase for future hardware experiments.
 
 ## Theoretical Background
 
@@ -31,9 +31,9 @@ $$\frac{d\mathbf{V}}{dt} = -\frac{1}{\tau}\mathbf{V} + \mathbf{W}\mathbf{s}(t) +
 
 The Quantum Leaky Integrate-and-Fire (QLIF) model represents neural excitation through qubit state probabilities:
 
-$$\alpha[t+1] = \sin^2\left(\frac{(\theta + \varphi[t])X[t+1] + (\gamma[t] + \varphi[t])(1-X[t+1])}{2}\right)$$
+$$\alpha[t+1] = \sin^2\left(\frac{(\theta + \varphi[t])X[t+1] + (\gamma[t] + \varphi[t])(1-X[t+1]) + \arcsin(\sqrt{\alpha[t]})}{2}\right)$$
 
-where $\alpha[t]$ is the excited-state probability, $\theta$ controls spike rotation angles, and $\gamma[t]$ models quantum decoherence via exponential $T_2$ decay.
+where $\\alpha[t]$ is the excited-state probability, $\\theta$ controls spike rotation angles, $\\gamma[t]$ models quantum decoherence via exponential $T_2$ decay, and the cumulative angle $\\arcsin(\\sqrt{\\alpha[t]})$ provides integration memory across timesteps.
 
 ### Quantum Algorithm Formulations
 
@@ -99,9 +99,9 @@ edges, stats = generateBrainConnectivity(atlasinfo, connectivity_seed=42)
 
 ![Brain Connectivity Matrix](./Plots/brain_connectivity_matrix_notebook.png)
 
-### 3. Quantum Neural Signal Processing
+### 3. Neural Signal Processing and Encoding
 
-Generates synthetic EEG signals with multiple physiological frequency bands and encodes them using three strategies: Hilbert-transform phase encoding, std-scaled threshold encoding, and amplitude normalization. Includes QLIF neuron simulation and NCSE computation.
+Generates synthetic EEG signals with physiological frequency bands and encodes them for quantum circuits. Three encoding strategies are implemented: Hilbert-transform phase encoding, std-scaled threshold encoding, and amplitude normalization. The module also includes a QLIF neuron model with cumulative angle integration. NCSE (Normalized Corrected Shannon Entropy) quantifies signal complexity.
 
 ```python
 from quantumNeuralSearch.neuralEncoding import (
@@ -143,7 +143,7 @@ job = simulator.run(circuit, shots=2048)
 
 ### 5. Variational Quantum Classifier
 
-Hybrid quantum-classical classifier using parametrized quantum circuits with multi-qubit measurement. Compares against SVM and Random Forest baselines on the same data.
+Parametrized quantum classifier with multi-qubit measurement. Compares against SVM and Random Forest baselines on the same data.
 
 ```python
 from quantumNeuralSearch.variationalClassifier import (
@@ -217,9 +217,12 @@ Quantum-Neural-Search/
       brainPlots.py
       masterAnalysis.py
   tests/
+    conftest.py               # Shared fixtures
     testGroverOracle.py       # Oracle correctness, iteration count
-    testEncodings.py          # Signal encoding, entropy, QLIF
+    testEncodings.py          # Signal encoding, entropy, QLIF, NCSE
     testVqcConvergence.py     # VQC training, baselines, measurement
+  scripts/
+    generatePlots.py          # Headless plot generation
   Plots/
 ```
 
@@ -227,9 +230,10 @@ Quantum-Neural-Search/
 
 On synthetic 4-qubit EEG data with 5 brain states (motor left/right, seizure onset, rest, cognitive load):
 
-- **Grover's Search**: ~75% average success rate for target state amplification (optimal 3 iterations for N=16). Speedup is $O(\sqrt{N})$ vs $O(N)$ classical brute-force enumeration.
-- **Variational Classifier**: ~36% accuracy on 5 classes (20% random baseline). Classical baselines (SVM, Random Forest) are evaluated on the same train/test split for direct comparison.
-- **14 tests** covering oracle correctness, encoding fidelity, and VQC convergence.
+- **Grover's Search**: ~96% average success probability for target state amplification (optimal 3 iterations for N=16). Speedup is $O(\sqrt{N})$ vs $O(N)$ classical brute-force enumeration.
+- **Variational Classifier**: ~35% test accuracy on 5 classes (20% random baseline, 1.7x above chance). Classical baselines (SVM 100%, Random Forest 100%) are evaluated on the same split. The accuracy gap reflects the 4-qubit bottleneck, not algorithm quality.
+- **16 tests** covering oracle correctness, encoding fidelity, QLIF integration, NCSE edge cases, and VQC convergence.
+- **CI**: ruff lint, ruff format, mypy type checking, pytest with coverage.
 
 The 4-qubit feature space is intentionally small for demonstration. Scaling to clinically relevant dimensionality requires hardware beyond current NISQ devices.
 
@@ -243,12 +247,11 @@ The 4-qubit feature space is intentionally small for demonstration. Scaling to c
 ## Future Goals
 
 - [ ] Extend to larger brain networks with 100+ regions
-- [ ] Incorporate real-time EEG processing for brain-computer interfaces
-- [ ] Validate on actual quantum hardware
-- [ ] Develop error mitigation strategies for noisy quantum hardware
-- [ ] Implement more sophisticated encoding schemes for continuous neural signals
-- [ ] Create quantum ML frameworks optimized for neural data
+- [ ] Validate on actual quantum hardware (IBM, IonQ)
+- [ ] Implement error mitigation strategies for noisy circuits
+- [ ] Explore continuous-variable encoding for higher-fidelity signal representation
+- [ ] Scale VQC to more qubits for improved 5-class discrimination
 
 ## Acknowledgments
 
-Built by [Jeffrey Morais](https://ichor.pages.dev/). Brain atlas coordinates follow the MNI152 standard. Quantum circuits use [Qiskit](https://qiskit.org/) and [PennyLane](https://pennylane.ai/).
+Built by [Jeffrey Morais](https://ichor.pages.dev/). Brain atlas coordinates follow the MNI152 standard. Quantum circuits use [Qiskit](https://qiskit.org/) and [PennyLane](https://pennylane.ai/). See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and conventions.

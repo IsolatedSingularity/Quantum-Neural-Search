@@ -34,9 +34,9 @@ def generateBrainConnectivity(atlasinfo, connectivity_seed=42) -> tuple:
     # Create stronger within-network connections (realistic brain organization)
     # This reflects the principle that brain regions within the same functional network
     # tend to be more strongly connected than regions across networks
-    for network in atlasinfo['yeo7networks'].unique():
+    for network in atlasinfo["yeo7networks"].unique():
         # Find indices of regions belonging to this network
-        network_indices = atlasinfo[atlasinfo['yeo7networks'] == network].index
+        network_indices = atlasinfo[atlasinfo["yeo7networks"] == network].index
 
         # Create all possible pairs within this network
         network_pairs = np.array(list(itertools.combinations(network_indices, 2)))
@@ -60,8 +60,8 @@ def generateBrainConnectivity(atlasinfo, connectivity_seed=42) -> tuple:
 
     # Analyze network structure
     network_stats = []
-    for network in atlasinfo['yeo7networks'].unique():
-        network_indices = atlasinfo[atlasinfo['yeo7networks'] == network].index
+    for network in atlasinfo["yeo7networks"].unique():
+        network_indices = atlasinfo[atlasinfo["yeo7networks"] == network].index
         network_size = len(network_indices)
 
         # Calculate within-network connectivity
@@ -71,17 +71,16 @@ def generateBrainConnectivity(atlasinfo, connectivity_seed=42) -> tuple:
         else:
             mean_within = 0
 
-        network_stats.append({
-            'Network': network,
-            'Regions': network_size,
-            'Mean_Connectivity': mean_within
-        })
+        network_stats.append(
+            {"Network": network, "Regions": network_size, "Mean_Connectivity": mean_within}
+        )
 
     network_df = pd.DataFrame(network_stats)
     print("\nNetwork connectivity statistics:")
     print(network_df)
 
     return edges, network_df
+
 
 def enhanceNetworkConnectivity(edges, atlasinfo) -> np.ndarray:
     """
@@ -98,8 +97,8 @@ def enhanceNetworkConnectivity(edges, atlasinfo) -> np.ndarray:
     rng = np.random.default_rng()
 
     # Strengthen within-network connections for better visual clarity
-    for network in atlasinfo['yeo7networks'].unique():
-        network_indices = atlasinfo[atlasinfo['yeo7networks'] == network].index
+    for network in atlasinfo["yeo7networks"].unique():
+        network_indices = atlasinfo[atlasinfo["yeo7networks"] == network].index
         if len(network_indices) > 1:
             # Create strong within-network connections
             for i in network_indices:
@@ -107,7 +106,8 @@ def enhanceNetworkConnectivity(edges, atlasinfo) -> np.ndarray:
                     if i != j:
                         enhanced_edges[i, j] = rng.normal(0.7, 0.05)  # Strong positive connections
 
-    return enhanced_edges
+    return enhanced_edges  # type: ignore[no-any-return]
+
 
 def visualizeConnectivityMatrix(edges, atlasinfo, seqCmap, save_path=None) -> plt.Figure:
     """
@@ -125,52 +125,66 @@ def visualizeConnectivityMatrix(edges, atlasinfo, seqCmap, save_path=None) -> pl
     fig, ax = plt.subplots(1, 1, figsize=(12, 10))
 
     # Create the connectivity matrix heatmap using the approved color palette
-    im = ax.imshow(edges, cmap=seqCmap, aspect='auto', vmin=0, vmax=0.6)
+    im = ax.imshow(edges, cmap=seqCmap, aspect="auto", vmin=0, vmax=0.6)
 
     # Add colorbar
     cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-    cbar.set_label('Connectivity Strength', fontsize=12)
+    cbar.set_label("Connectivity Strength", fontsize=12)
 
     # Customize the plot
-    ax.set_title('Brain Connectivity Matrix\n(33 Regions, 6 Functional Networks)',
-                 fontsize=16, fontweight='bold', pad=60)
-    ax.set_xlabel('Brain Regions', fontsize=14)
-    ax.set_ylabel('Brain Regions', fontsize=14)
+    ax.set_title(
+        "Brain Connectivity Matrix\n(33 Regions, 6 Functional Networks)",
+        fontsize=16,
+        fontweight="bold",
+        pad=60,
+    )
+    ax.set_xlabel("Brain Regions", fontsize=14)
+    ax.set_ylabel("Brain Regions", fontsize=14)
 
     # Add network boundaries for visual organization
     network_boundaries = []
     current_idx = 0
-    for network in atlasinfo['yeo7networks'].unique():
-        network_size = len(atlasinfo[atlasinfo['yeo7networks'] == network])
+    for network in atlasinfo["yeo7networks"].unique():
+        network_size = len(atlasinfo[atlasinfo["yeo7networks"] == network])
         network_boundaries.append(current_idx + network_size)
         current_idx += network_size
 
     # Draw network boundary lines
     for boundary in network_boundaries[:-1]:  # Exclude the last boundary
-        ax.axhline(y=boundary-0.5, color='white', linewidth=2, alpha=0.7)
-        ax.axvline(x=boundary-0.5, color='white', linewidth=2, alpha=0.7)
+        ax.axhline(y=boundary - 0.5, color="white", linewidth=2, alpha=0.7)
+        ax.axvline(x=boundary - 0.5, color="white", linewidth=2, alpha=0.7)
 
     # Add network labels (simplified for clarity)
     network_centers = []
     start_idx = 0
-    for i, network in enumerate(atlasinfo['yeo7networks'].unique()):
-        network_size = len(atlasinfo[atlasinfo['yeo7networks'] == network])
+    for i, network in enumerate(atlasinfo["yeo7networks"].unique()):
+        network_size = len(atlasinfo[atlasinfo["yeo7networks"] == network])
         center = start_idx + network_size // 2
         network_centers.append((center, network))
         start_idx += network_size
 
     # Add text labels for networks
     for center, network in network_centers:
-        ax.text(center, -3, network, ha='center', va='top', fontsize=10, fontweight='bold')
-        ax.text(-3, center, network, ha='right', va='center', fontsize=10, fontweight='bold', rotation=90)
+        ax.text(center, -3, network, ha="center", va="top", fontsize=10, fontweight="bold")
+        ax.text(
+            -3,
+            center,
+            network,
+            ha="right",
+            va="center",
+            fontsize=10,
+            fontweight="bold",
+            rotation=90,
+        )
 
     plt.tight_layout()
 
     # Save to specified path if provided
     if save_path:
-        plt.savefig(save_path, dpi=300, bbox_inches='tight', facecolor='white')
+        plt.savefig(save_path, dpi=300, bbox_inches="tight", facecolor="white")
 
     return fig
+
 
 if __name__ == "__main__":
     # Demonstration of connectivity matrix generation
@@ -184,7 +198,7 @@ if __name__ == "__main__":
     edges, network_stats = generateBrainConnectivity(atlasinfo)
 
     # Create visualization
-    fig = visualizeConnectivityMatrix(edges, atlasinfo, seqCmap, '../Plots/connectivity_demo.png')
+    fig = visualizeConnectivityMatrix(edges, atlasinfo, seqCmap, "../Plots/connectivity_demo.png")
     plt.show()
 
     print("\nConnectivity matrix generation complete!")

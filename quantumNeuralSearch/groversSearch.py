@@ -19,11 +19,11 @@ def initializeGroverSearch() -> tuple[dict, dict, AerSimulator]:
     """
     # Define brain state signatures for quantum search
     brain_signatures = {
-        'motor_left': [1, 0, 1, 1],      # High activation, left lateralized, motor cortex
-        'motor_right': [1, 1, 0, 1],     # High activation, right lateralized, motor cortex
-        'seizure_onset': [1, 1, 1, 0],   # High synchrony, widespread activation, non-motor
-        'rest_state': [0, 0, 0, 0],      # Low activation across all regions
-        'cognitive_load': [0, 1, 1, 1]   # Moderate activation, frontal-parietal networks
+        "motor_left": [1, 0, 1, 1],  # High activation, left lateralized, motor cortex
+        "motor_right": [1, 1, 0, 1],  # High activation, right lateralized, motor cortex
+        "seizure_onset": [1, 1, 1, 0],  # High synchrony, widespread activation, non-motor
+        "rest_state": [0, 0, 0, 0],  # Low activation across all regions
+        "cognitive_load": [0, 1, 1, 1],  # Moderate activation, frontal-parietal networks
     }
 
     # Quantum encoding parameters
@@ -31,9 +31,11 @@ def initializeGroverSearch() -> tuple[dict, dict, AerSimulator]:
     search_space_size = 2**n_qubits  # 16 possible brain states
 
     search_params = {
-        'n_qubits': n_qubits,
-        'search_space_size': search_space_size,
-        'optimal_iterations': int(np.round(np.pi / (4 * np.arcsin(1 / np.sqrt(search_space_size)))))
+        "n_qubits": n_qubits,
+        "search_space_size": search_space_size,
+        "optimal_iterations": int(
+            np.round(np.pi / (4 * np.arcsin(1 / np.sqrt(search_space_size))))
+        ),
     }
 
     # Initialize quantum simulator
@@ -48,7 +50,10 @@ def initializeGroverSearch() -> tuple[dict, dict, AerSimulator]:
 
     return brain_signatures, search_params, simulator
 
-def constructGroverCircuit(target_signature, n_qubits=4, n_iterations=None) -> tuple[QuantumCircuit, int]:
+
+def constructGroverCircuit(
+    target_signature, n_qubits=4, n_iterations=None
+) -> tuple[QuantumCircuit, int]:
     """
     Construct complete Grover circuit for brain state detection.
 
@@ -67,13 +72,13 @@ def constructGroverCircuit(target_signature, n_qubits=4, n_iterations=None) -> t
         n_iterations = max(1, optimalIterations)
 
     # Create quantum registers
-    qubits = QuantumRegister(n_qubits, 'neural_features')
-    cbits = ClassicalRegister(n_qubits, 'measurement')
+    qubits = QuantumRegister(n_qubits, "neural_features")
+    cbits = ClassicalRegister(n_qubits, "measurement")
     circuit = QuantumCircuit(qubits, cbits)
 
     # Step 1: Initialize uniform superposition
     circuit.h(qubits)
-    circuit.barrier(label='Initialization')
+    circuit.barrier(label="Initialization")
 
     # Step 2: Apply Grover iterations
     for iteration in range(n_iterations):
@@ -99,7 +104,7 @@ def constructGroverCircuit(target_signature, n_qubits=4, n_iterations=None) -> t
             if bit == 0:
                 circuit.x(qubits[i])
 
-        circuit.barrier(label=f'Oracle_{iteration+1}')
+        circuit.barrier(label=f"Oracle_{iteration + 1}")
 
         # Apply diffusion operator (amplitude amplification)
         circuit.h(qubits)
@@ -115,14 +120,17 @@ def constructGroverCircuit(target_signature, n_qubits=4, n_iterations=None) -> t
             circuit.mcp(np.pi, list(range(n_qubits - 1)), n_qubits - 1)
         circuit.x(qubits)
         circuit.h(qubits)
-        circuit.barrier(label=f'Diffusion_{iteration+1}')
+        circuit.barrier(label=f"Diffusion_{iteration + 1}")
 
     # Step 3: Measure brain state
     circuit.measure(qubits, cbits)
 
     return circuit, n_iterations
 
-def executeGroverClassification(brain_signatures, search_params, simulator, measurement_shots=4096) -> dict:
+
+def executeGroverClassification(
+    brain_signatures, search_params, simulator, measurement_shots=4096
+) -> dict:
     """
     Execute quantum brain state classification using Grover's algorithm.
 
@@ -143,7 +151,9 @@ def executeGroverClassification(brain_signatures, search_params, simulator, meas
         print(f"Classifying {state_name} pattern: {target_signature}")
 
         # Construct Grover circuit
-        grover_circuit, iterations = constructGroverCircuit(target_signature, search_params['n_qubits'])
+        grover_circuit, iterations = constructGroverCircuit(
+            target_signature, search_params["n_qubits"]
+        )
 
         # Execute on quantum simulator
         job = simulator.run(grover_circuit, shots=measurement_shots)
@@ -151,25 +161,25 @@ def executeGroverClassification(brain_signatures, search_params, simulator, meas
         counts = result.get_counts()
 
         # Convert measurement results to brain state probabilities
-        target_bitstring = ''.join(map(str, target_signature[::-1]))  # Little-endian format
+        target_bitstring = "".join(map(str, target_signature[::-1]))  # Little-endian format
         target_count = counts.get(target_bitstring, 0)
         success_probability = target_count / measurement_shots
 
         # Calculate quantum metrics
-        quantum_advantage = search_params['search_space_size'] / iterations
+        quantum_advantage = search_params["search_space_size"] / iterations
         circuit_depth = grover_circuit.depth()
         gate_count = grover_circuit.size()
 
         # Store results
         classification_results[state_name] = {
-            'target_pattern': target_signature,
-            'target_bitstring': target_bitstring,
-            'success_probability': success_probability,
-            'iterations': iterations,
-            'quantum_advantage': quantum_advantage,
-            'circuit_depth': circuit_depth,
-            'gate_count': gate_count,
-            'measurements': counts
+            "target_pattern": target_signature,
+            "target_bitstring": target_bitstring,
+            "success_probability": success_probability,
+            "iterations": iterations,
+            "quantum_advantage": quantum_advantage,
+            "circuit_depth": circuit_depth,
+            "gate_count": gate_count,
+            "measurements": counts,
         }
 
         print(f"  Success probability: {success_probability:.3f}")
@@ -179,6 +189,7 @@ def executeGroverClassification(brain_signatures, search_params, simulator, meas
         print()
 
     return classification_results
+
 
 def analyzeClassificationPerformance(classification_results) -> dict:
     """
@@ -195,8 +206,8 @@ def analyzeClassificationPerformance(classification_results) -> dict:
     high_fidelity_states = 0
 
     for state_name, results in classification_results.items():
-        prob = results['success_probability']
-        advantage = results['quantum_advantage']
+        prob = results["success_probability"]
+        advantage = results["quantum_advantage"]
 
         # Classification quality assessment
         if prob >= 0.7:
@@ -217,19 +228,26 @@ def analyzeClassificationPerformance(classification_results) -> dict:
     fidelity_rate = high_fidelity_states / len(classification_results)
 
     performance_metrics = {
-        'average_success': average_success,
-        'fidelity_rate': fidelity_rate,
-        'high_fidelity_states': high_fidelity_states,
-        'total_states': len(classification_results),
-        'mean_quantum_advantage': np.mean([r['quantum_advantage'] for r in classification_results.values()])
+        "average_success": average_success,
+        "fidelity_rate": fidelity_rate,
+        "high_fidelity_states": high_fidelity_states,
+        "total_states": len(classification_results),
+        "mean_quantum_advantage": np.mean(
+            [r["quantum_advantage"] for r in classification_results.values()]
+        ),
     }
 
     print("\nOverall Classification Metrics:")
     print(f"  Average success probability: {average_success:.3f}")
-    print(f"  High-fidelity classifications: {high_fidelity_states}/{len(classification_results)} ({fidelity_rate:.1%})")
+    print(
+        f"  High-fidelity classifications: "
+        f"{high_fidelity_states}/{len(classification_results)} "
+        f"({fidelity_rate:.1%})"
+    )
     print(f"  Mean quantum advantage: {performance_metrics['mean_quantum_advantage']:.1f}x")
 
     return performance_metrics
+
 
 def simulateRealTimeProcessing(search_params, classification_results) -> dict:
     """
@@ -247,16 +265,16 @@ def simulateRealTimeProcessing(search_params, classification_results) -> dict:
     analysis_window = 1.0  # seconds
     daily_analyses = int(24 * 3600 / analysis_window)
 
-    classical_ops_per_analysis = search_params['search_space_size']
-    quantum_ops_per_analysis = search_params['optimal_iterations']
+    classical_ops_per_analysis = search_params["search_space_size"]
+    quantum_ops_per_analysis = search_params["optimal_iterations"]
 
     real_time_metrics = {
-        'sampling_rate': sampling_rate,
-        'analysis_window': analysis_window,
-        'daily_analyses': daily_analyses,
-        'classical_ops_daily': daily_analyses * classical_ops_per_analysis,
-        'quantum_ops_daily': daily_analyses * quantum_ops_per_analysis,
-        'efficiency_gain': classical_ops_per_analysis / quantum_ops_per_analysis
+        "sampling_rate": sampling_rate,
+        "analysis_window": analysis_window,
+        "daily_analyses": daily_analyses,
+        "classical_ops_daily": daily_analyses * classical_ops_per_analysis,
+        "quantum_ops_daily": daily_analyses * quantum_ops_per_analysis,
+        "efficiency_gain": classical_ops_per_analysis / quantum_ops_per_analysis,
     }
 
     print("Real-time monitoring parameters:")
@@ -268,6 +286,7 @@ def simulateRealTimeProcessing(search_params, classification_results) -> dict:
     print(f"  Computational efficiency gain: {real_time_metrics['efficiency_gain']:.0f}x")
 
     return real_time_metrics
+
 
 if __name__ == "__main__":
     # Demonstration of Grover's algorithm for neural pattern search

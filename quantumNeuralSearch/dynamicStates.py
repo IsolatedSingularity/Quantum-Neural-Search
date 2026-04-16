@@ -11,9 +11,11 @@ import numpy as np
 
 try:
     from IPython.display import Image, display
+
     IPYTHON_AVAILABLE = True
 except ImportError:
     IPYTHON_AVAILABLE = False
+
 
 def generateDynamicConnectivity(base_edges, atlasinfo, t) -> np.ndarray:
     """
@@ -30,12 +32,12 @@ def generateDynamicConnectivity(base_edges, atlasinfo, t) -> np.ndarray:
     dynamic_edges = base_edges.copy()
 
     # Add oscillating components to different networks
-    for i, network in enumerate(atlasinfo['yeo7networks'].unique()):
-        idx = atlasinfo[atlasinfo['yeo7networks']==network].index
+    for i, network in enumerate(atlasinfo["yeo7networks"].unique()):
+        idx = atlasinfo[atlasinfo["yeo7networks"] == network].index
 
         # Each network oscillates at different frequencies (like real brain rhythms)
         freq = 0.5 + i * 0.3  # Different frequency for each network
-        amplitude = 0.2       # Modulation strength
+        amplitude = 0.2  # Modulation strength
 
         # Add sinusoidal modulation to network connections
         modulation = amplitude * np.sin(freq * t)
@@ -44,9 +46,12 @@ def generateDynamicConnectivity(base_edges, atlasinfo, t) -> np.ndarray:
                 if row != col:
                     dynamic_edges[row, col] += modulation
 
-    return np.clip(dynamic_edges, 0, 1)  # Keep values in reasonable range
+    return np.clip(dynamic_edges, 0, 1)  # type: ignore[no-any-return]  # Keep values in reasonable range
 
-def createBrainNetworkAnimation(base_edges, atlasinfo, seqCmap, divCmap, cubehelix_reverse, save_path=None) -> tuple:
+
+def createBrainNetworkAnimation(
+    base_edges, atlasinfo, seqCmap, divCmap, cubehelix_reverse, save_path=None
+) -> tuple:
     """
     Create dynamic brain network activity animation.
 
@@ -61,7 +66,7 @@ def createBrainNetworkAnimation(base_edges, atlasinfo, seqCmap, divCmap, cubehel
     """
     # Animation parameters
     n_timepoints = 60
-    time_points = np.linspace(0, 4*np.pi, n_timepoints)
+    time_points = np.linspace(0, 4 * np.pi, n_timepoints)
 
     # Set up the animation figure with proper color scheme
     fig = plt.figure(figsize=(18, 10))
@@ -70,48 +75,61 @@ def createBrainNetworkAnimation(base_edges, atlasinfo, seqCmap, divCmap, cubehel
     # Connectivity matrix subplot
     ax1 = fig.add_subplot(gs[0, 0])
     im1 = ax1.imshow(base_edges, cmap=seqCmap, vmin=0, vmax=0.8)
-    ax1.set_title('Dynamic Connectivity Matrix', fontsize=12, fontweight='bold')
+    ax1.set_title("Dynamic Connectivity Matrix", fontsize=12, fontweight="bold")
     plt.colorbar(im1, ax=ax1, fraction=0.046, pad=0.04)
 
     # Network activity over time
     ax2 = fig.add_subplot(gs[0, 1:])
-    ax2.set_title('Network Activity Time Series', fontsize=12, fontweight='bold')
-    ax2.set_xlabel('Time (seconds)')
-    ax2.set_ylabel('Network Activity Level')
-    ax2.set_xlim(0, 4*np.pi)
+    ax2.set_title("Network Activity Time Series", fontsize=12, fontweight="bold")
+    ax2.set_xlabel("Time (seconds)")
+    ax2.set_ylabel("Network Activity Level")
+    ax2.set_xlim(0, 4 * np.pi)
     ax2.set_ylim(-0.3, 1.0)
 
     # Initialize activity lines for each network using project colors
     activity_lines = []
-    network_names = list(atlasinfo['yeo7networks'].unique())
+    network_names = list(atlasinfo["yeo7networks"].unique())
     colors_for_networks = seqCmap(np.linspace(0.2, 0.9, len(network_names)))
 
     for i, (network, color) in enumerate(zip(network_names, colors_for_networks)):
-        line, = ax2.plot([], [], color=color, linewidth=2.5, label=network, alpha=0.8)
+        (line,) = ax2.plot([], [], color=color, linewidth=2.5, label=network, alpha=0.8)
         activity_lines.append(line)
 
-    ax2.legend(loc='upper right', fontsize=9, framealpha=0.9)
+    ax2.legend(loc="upper right", fontsize=9, framealpha=0.9)
     ax2.grid(True, alpha=0.3)
 
     # Current time indicator
-    time_line = ax2.axvline(x=0, color='red', linestyle='--', linewidth=2, alpha=0.8)
+    time_line = ax2.axvline(x=0, color="red", linestyle="--", linewidth=2, alpha=0.8)
 
     # Network strength bar chart
     ax3 = fig.add_subplot(gs[1, :2])
-    bars = ax3.bar(network_names, [0]*len(network_names),
-                   color=colors_for_networks, alpha=0.7, edgecolor='black', linewidth=1)
-    ax3.set_title('Current Network Activity Levels', fontsize=12, fontweight='bold')
-    ax3.set_ylabel('Activity Level (Normalized)')
-    ax3.tick_params(axis='x', rotation=45)
+    bars = ax3.bar(
+        network_names,
+        [0] * len(network_names),
+        color=colors_for_networks,
+        alpha=0.7,
+        edgecolor="black",
+        linewidth=1,
+    )
+    ax3.set_title("Current Network Activity Levels", fontsize=12, fontweight="bold")
+    ax3.set_ylabel("Activity Level (Normalized)")
+    ax3.tick_params(axis="x", rotation=45)
     ax3.set_ylim(0, 1)
     ax3.grid(True, alpha=0.3)
 
     # Brain state indicator
     ax4 = fig.add_subplot(gs[1, 2])
-    ax4.axis('off')
-    state_text = ax4.text(0.5, 0.7, 'Initializing...', fontsize=12, fontweight='bold',
-                        ha='center', va='center',
-                        bbox=dict(boxstyle="round,pad=0.5", facecolor=cubehelix_reverse(0.3), alpha=0.8))
+    ax4.axis("off")
+    state_text = ax4.text(
+        0.5,
+        0.7,
+        "Initializing...",
+        fontsize=12,
+        fontweight="bold",
+        ha="center",
+        va="center",
+        bbox=dict(boxstyle="round,pad=0.5", facecolor=cubehelix_reverse(0.3), alpha=0.8),
+    )
 
     def animate(frame):
         """Animation function for updating plots at each frame."""
@@ -126,7 +144,7 @@ def createBrainNetworkAnimation(base_edges, atlasinfo, seqCmap, divCmap, cubehel
         # Calculate network activities (mean within-network connectivity)
         network_activities = []
         for network in network_names:
-            idx = atlasinfo[atlasinfo['yeo7networks']==network].index
+            idx = atlasinfo[atlasinfo["yeo7networks"] == network].index
             if len(idx) > 1:
                 # Calculate mean within-network connectivity
                 network_submatrix = current_edges[np.ix_(idx, idx)]
@@ -177,20 +195,22 @@ def createBrainNetworkAnimation(base_edges, atlasinfo, seqCmap, divCmap, cubehel
         return [im1] + activity_lines + [time_line] + list(bars) + [state_text]
 
     # Create animation
-    anim = animation.FuncAnimation(fig, animate, frames=n_timepoints,
-                                  interval=150, blit=False, repeat=True)
+    anim = animation.FuncAnimation(
+        fig, animate, frames=n_timepoints, interval=150, blit=False, repeat=True
+    )
 
-    plt.suptitle('Dynamic Brain Network Activity Over Time', fontsize=16, fontweight='bold')
+    plt.suptitle("Dynamic Brain Network Activity Over Time", fontsize=16, fontweight="bold")
 
     # Save animation if path provided
     if save_path:
         try:
-            anim.save(save_path, writer='pillow', fps=8, dpi=100)
+            anim.save(save_path, writer="pillow", fps=8, dpi=100)
             print(f"Animation saved to: {save_path}")
         except Exception as e:
             print(f"Error saving animation: {e}")
 
     return anim, fig
+
 
 def createStaticDynamicsVisualization(base_edges, atlasinfo, seqCmap, save_path=None) -> plt.Figure:
     """
@@ -206,23 +226,24 @@ def createStaticDynamicsVisualization(base_edges, atlasinfo, seqCmap, save_path=
         matplotlib.figure.Figure: Generated static figure
     """
     fig, axes = plt.subplots(2, 3, figsize=(16, 10))
-    fig.suptitle('Brain Network Dynamics (Static Multi-Frame View)', fontsize=16, fontweight='bold')
+    fig.suptitle("Brain Network Dynamics (Static Multi-Frame View)", fontsize=16, fontweight="bold")
 
-    time_points = np.linspace(0, 4*np.pi, 6)
+    time_points = np.linspace(0, 4 * np.pi, 6)
 
     for i, t in enumerate(time_points):
-        ax = axes[i//3, i%3]
+        ax = axes[i // 3, i % 3]
         dynamic_edges = generateDynamicConnectivity(base_edges, atlasinfo, t)
         im = ax.imshow(dynamic_edges[:20, :20], cmap=seqCmap)
-        ax.set_title(f'Time: {t:.1f}s')
+        ax.set_title(f"Time: {t:.1f}s")
         plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
 
     plt.tight_layout()
 
     if save_path:
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
+        plt.savefig(save_path, dpi=150, bbox_inches="tight")
 
     return fig
+
 
 if __name__ == "__main__":
     # Demonstration of dynamic brain network animation
@@ -236,19 +257,26 @@ if __name__ == "__main__":
 
     # Create animation
     try:
-        anim, fig = createBrainNetworkAnimation(edges, atlasinfo, seqCmap, divCmap, cubehelix_reverse,
-                                               '../Plots/brain_network_animation_demo.gif')
+        anim, fig = createBrainNetworkAnimation(
+            edges,
+            atlasinfo,
+            seqCmap,
+            divCmap,
+            cubehelix_reverse,
+            "../Plots/brain_network_animation_demo.gif",
+        )
         plt.show()
 
         # Display animation if in Jupyter
         if IPYTHON_AVAILABLE:
-            display(Image('../Plots/brain_network_animation_demo.gif'))
+            display(Image("../Plots/brain_network_animation_demo.gif"))
 
     except Exception as e:
         print(f"Animation creation failed: {e}")
         print("Creating static visualization instead...")
-        fig = createStaticDynamicsVisualization(edges, atlasinfo, seqCmap,
-                                               '../Plots/brain_network_static_demo.png')
+        fig = createStaticDynamicsVisualization(
+            edges, atlasinfo, seqCmap, "../Plots/brain_network_static_demo.png"
+        )
         plt.show()
 
     print("\nDynamic brain network visualization complete!")

@@ -5,6 +5,8 @@ This module implements a variational quantum circuit for brain state
 classification using hybrid quantum-classical optimization.
 """
 
+from collections.abc import Callable
+
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report
@@ -13,11 +15,17 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 
 try:
+    import autograd.numpy as anp
     import pennylane as qml
+
     PENNYLANE_AVAILABLE = True
 except ImportError:
+    anp = np  # Fallback to regular numpy
     PENNYLANE_AVAILABLE = False
-    print("Warning: PennyLane not available. Variational quantum classifier will use simulation mode.")
+    print(
+        "Warning: PennyLane not available. Variational quantum classifier will use simulation mode."
+    )
+
 
 def setupQuantumDevice(n_qubits=4) -> object | None:
     """
@@ -30,9 +38,10 @@ def setupQuantumDevice(n_qubits=4) -> object | None:
         quantum device object or None if PennyLane unavailable
     """
     if PENNYLANE_AVAILABLE:
-        return qml.device('default.qubit', wires=n_qubits)
+        return qml.device("default.qubit", wires=n_qubits)  # type: ignore[no-any-return]
     else:
         return None
+
 
 def variationalCircuit(features, weights) -> None:
     """
@@ -57,24 +66,25 @@ def variationalCircuit(features, weights) -> None:
     for i in range(n_qubits):
         qml.RY(weights[i], wires=i)
 
-    for i in range(n_qubits-1):
-        qml.CNOT(wires=[i, i+1])
-    qml.CNOT(wires=[n_qubits-1, 0])  # Circular connectivity
+    for i in range(n_qubits - 1):
+        qml.CNOT(wires=[i, i + 1])
+    qml.CNOT(wires=[n_qubits - 1, 0])  # Circular connectivity
 
     # Entangling layer 2 - deeper quantum feature extraction
     for i in range(n_qubits):
         qml.RZ(weights[i + n_qubits], wires=i)
 
-    for i in range(0, n_qubits-1, 2):
-        qml.CNOT(wires=[i, i+1])
-    for i in range(1, n_qubits-1, 2):
-        qml.CNOT(wires=[i, i+1])
+    for i in range(0, n_qubits - 1, 2):
+        qml.CNOT(wires=[i, i + 1])
+    for i in range(1, n_qubits - 1, 2):
+        qml.CNOT(wires=[i, i + 1])
 
     # Final parametrized layer
     for i in range(n_qubits):
-        qml.RY(weights[i + 2*n_qubits], wires=i)
+        qml.RY(weights[i + 2 * n_qubits], wires=i)
 
-def createQuantumClassifier(dev) -> callable:
+
+def createQuantumClassifier(dev) -> Callable:
     """
     Create quantum classifier circuit with measurement.
 
@@ -85,13 +95,15 @@ def createQuantumClassifier(dev) -> callable:
         quantum node function or simulation function
     """
     if PENNYLANE_AVAILABLE and dev is not None:
+
         @qml.qnode(dev)
         def quantum_classifier(features, weights):
             variationalCircuit(features, weights)
             # Multi-qubit measurement: return expectation values from all qubits
             # to provide enough information for 5-class discrimination
-            return [qml.expval(qml.PauliZ(i)) for i in range(len(features))]
-        return quantum_classifier
+            return [qml.expval(qml.PauliZ(i)) for i in range(len(features))]  # type: ignore[no-any-return]
+
+        return quantum_classifier  # type: ignore[no-any-return]
     else:
         # Simulation mode when PennyLane is not available
         def quantum_classifier_sim(features, weights):
@@ -102,12 +114,16 @@ def createQuantumClassifier(dev) -> callable:
             expvals = []
             for q in range(n_qubits):
                 weightSlice = weights[q::n_qubits][:n_layers]
-                val = np.tanh(np.sum(features * weightSlice[:len(features)]))
+                val = np.tanh(np.sum(features * weightSlice[: len(features)]))
                 expvals.append(val)
             return expvals
+
         return quantum_classifier_sim
 
-def prepareBrainStateTrainingData(seed=42) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[str], StandardScaler]:
+
+def prepareBrainStateTrainingData(
+    seed=42,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[str], StandardScaler]:
     """
     Prepare brain state training dataset with realistic EEG-derived features.
 
@@ -121,11 +137,11 @@ def prepareBrainStateTrainingData(seed=42) -> tuple[np.ndarray, np.ndarray, np.n
 
     # Brain state feature patterns (expanded from Grover's section)
     brain_state_features = {
-        'motor_left': [0.8, 0.9, 0.3, 0.9],      # High activation, left dominant, motor active
-        'motor_right': [0.8, 0.3, 0.9, 0.9],     # High activation, right dominant, motor active
-        'seizure_onset': [0.95, 0.8, 0.8, 0.6],  # Very high activation, bilateral, moderate motor
-        'rest_state': [0.2, 0.4, 0.4, 0.1],      # Low activation, balanced, minimal motor
-        'cognitive_load': [0.7, 0.6, 0.7, 0.3]   # Moderate activation, bilateral, low motor
+        "motor_left": [0.8, 0.9, 0.3, 0.9],  # High activation, left dominant, motor active
+        "motor_right": [0.8, 0.3, 0.9, 0.9],  # High activation, right dominant, motor active
+        "seizure_onset": [0.95, 0.8, 0.8, 0.6],  # Very high activation, bilateral, moderate motor
+        "rest_state": [0.2, 0.4, 0.4, 0.1],  # Low activation, balanced, minimal motor
+        "cognitive_load": [0.7, 0.6, 0.7, 0.3],  # Moderate activation, bilateral, low motor
     }
 
     # Generate synthetic training data with realistic noise
@@ -163,54 +179,64 @@ def prepareBrainStateTrainingData(seed=42) -> tuple[np.ndarray, np.ndarray, np.n
 
     return X_train, X_test, y_train, y_test, state_names, scaler
 
-def costFunction(weights, X_batch, y_batch, quantum_classifier, n_classes) -> float:
+
+def costFunction(weights, X_batch, y_batch, quantum_classifier, n_classes, n_qubits=4) -> float:
     """
     Cost function using quantum classifier predictions.
 
+    Weights layout: first (3 * n_qubits) entries are circuit parameters,
+    the remaining (n_qubits * n_classes) entries form a learned linear
+    projection from qubit expectation values to class scores.
+
     Args:
-        weights (array): Quantum circuit parameters
+        weights (array): Circuit params + projection matrix (flattened)
         X_batch (array): Input features batch
         y_batch (array): Target labels batch
         quantum_classifier (callable): Quantum classifier function
         n_classes (int): Number of classes
+        n_qubits (int): Number of qubits in the circuit
 
     Returns:
         float: Cost value
     """
+    nCircuit = 3 * n_qubits
+    circuitWeights = weights[:nCircuit]
+    projWeights = weights[nCircuit:].reshape(n_qubits, n_classes)
+
     predictions = []
 
     for x in X_batch:
-        expvals = quantum_classifier(x, weights)
-        expvals = np.array(expvals)
-        predictions.append(expvals)
+        expvals = quantum_classifier(x, circuitWeights)
+        predictions.append(anp.array(expvals))
 
-    predictions = np.array(predictions)
-
-    # Map multi-qubit expectations to class scores via linear combination
-    # Each class gets a score from the weighted sum of expectation values
+    predictions = anp.stack(predictions)
     nSamples = predictions.shape[0]
-    nQubits = predictions.shape[1]
 
-    # One-hot encode labels
+    # One-hot encode labels (plain numpy, not traced)
     oneHot = np.zeros((nSamples, n_classes))
     for i, label in enumerate(y_batch):
         oneHot[i, int(label)] = 1.0
 
-    # Softmax-like mapping from qubit expectations to class probabilities
-    # Use linear projection: scores = predictions @ W where W is implicit from nQubits x nClasses
-    # For simplicity, distribute expectations evenly across classes
-    classProbabilities = np.zeros((nSamples, n_classes))
-    for c in range(n_classes):
-        # Each class reads a weighted combination of qubit expectations
-        qubitIdx = c % nQubits
-        classProbabilities[:, c] = (predictions[:, qubitIdx] + 1) / 2  # Map [-1,1] -> [0,1]
+    # Learned linear projection: scores = predictions @ W
+    # Map expectation values [-1, 1] through projection to class scores
+    rawScores = predictions @ projWeights  # (nSamples, n_classes)
+    # Shift to [0, 1] range without exp (autograd-compatible)
+    classProbabilities = (rawScores + 1.0) / 2.0
 
     # Mean squared error against one-hot targets
-    cost = np.mean((classProbabilities - oneHot) ** 2)
-    return cost
+    cost = anp.mean((classProbabilities - oneHot) ** 2)
+    return cost  # type: ignore[no-any-return]
 
-def trainVariationalQuantumClassifier(X_train, y_train, state_names, quantum_classifier,
-                                    max_iterations=100, learning_rate=0.1, batch_size=10) -> tuple[np.ndarray, list[float]]:
+
+def trainVariationalQuantumClassifier(
+    X_train,
+    y_train,
+    state_names,
+    quantum_classifier,
+    max_iterations=100,
+    learning_rate=0.1,
+    batch_size=10,
+) -> tuple[np.ndarray, list[float]]:
     """
     Train the variational quantum classifier.
 
@@ -228,11 +254,27 @@ def trainVariationalQuantumClassifier(X_train, y_train, state_names, quantum_cla
     """
     print("=== Quantum Training Process ===")
 
-    # Initialize quantum circuit parameters
+    # Initialize quantum circuit parameters + learned projection weights
     n_qubits = X_train.shape[1]
-    n_weights = 3 * n_qubits  # Weights for 3 parametrized layers
+    nCircuitWeights = 3 * n_qubits  # Weights for 3 parametrized layers
+    nClasses = len(state_names)
+    nProjWeights = n_qubits * nClasses  # Learned linear projection 4x5
+    nTotalWeights = nCircuitWeights + nProjWeights
+
     rng = np.random.default_rng()
-    weights = rng.uniform(0, 2*np.pi, n_weights)
+    initValues = np.concatenate(
+        [
+            rng.uniform(0, 2 * np.pi, nCircuitWeights),
+            rng.standard_normal(nProjWeights) * 0.1,  # Small init for projection
+        ]
+    )
+
+    # Use PennyLane numpy for autograd compatibility
+    if PENNYLANE_AVAILABLE:
+        pnp = qml.numpy
+        weights = pnp.array(initValues, requires_grad=True)
+    else:
+        weights = initValues.copy()
 
     # Track training progress
     cost_history = []
@@ -244,7 +286,9 @@ def trainVariationalQuantumClassifier(X_train, y_train, state_names, quantum_cla
     print(f"Starting training with {max_iterations} iterations...")
     print(f"Learning rate: {learning_rate}")
     print(f"Batch size: {batch_size}")
-    print(f"Quantum circuit parameters: {n_weights}")
+    print(f"Quantum circuit parameters: {nCircuitWeights}")
+    print(f"Projection parameters: {nProjWeights}")
+    print(f"Total trainable parameters: {nTotalWeights}")
 
     # Training loop with batch processing
     for iteration in range(max_iterations):
@@ -254,14 +298,17 @@ def trainVariationalQuantumClassifier(X_train, y_train, state_names, quantum_cla
         y_batch = y_train[batch_indices]
 
         # Compute cost
-        cost = costFunction(weights, X_batch, y_batch, quantum_classifier, len(state_names))
+        cost = costFunction(weights, X_batch, y_batch, quantum_classifier, nClasses, n_qubits)
         cost_history.append(cost)
 
-        # Simple gradient descent update (approximation when PennyLane not available)
+        # Gradient descent update
         if PENNYLANE_AVAILABLE:
-            weights = opt.step(lambda w: costFunction(w, X_batch, y_batch, quantum_classifier, len(state_names)), weights)
+            weights = opt.step(
+                lambda w: costFunction(w, X_batch, y_batch, quantum_classifier, nClasses, n_qubits),
+                weights,
+            )
         else:
-            # Approximate gradient descent for simulation mode
+            # Finite-difference gradient for simulation mode
             epsilon = 0.01
             gradient = np.zeros_like(weights)
             for i in range(len(weights)):
@@ -270,8 +317,12 @@ def trainVariationalQuantumClassifier(X_train, y_train, state_names, quantum_cla
                 weights_plus[i] += epsilon
                 weights_minus[i] -= epsilon
 
-                cost_plus = costFunction(weights_plus, X_batch, y_batch, quantum_classifier, len(state_names))
-                cost_minus = costFunction(weights_minus, X_batch, y_batch, quantum_classifier, len(state_names))
+                cost_plus = costFunction(
+                    weights_plus, X_batch, y_batch, quantum_classifier, nClasses, n_qubits
+                )
+                cost_minus = costFunction(
+                    weights_minus, X_batch, y_batch, quantum_classifier, nClasses, n_qubits
+                )
 
                 gradient[i] = (cost_plus - cost_minus) / (2 * epsilon)
 
@@ -285,7 +336,10 @@ def trainVariationalQuantumClassifier(X_train, y_train, state_names, quantum_cla
 
     return weights, cost_history
 
-def evaluateQuantumClassifier(X_train, X_test, y_train, y_test, weights, quantum_classifier, state_names) -> dict:
+
+def evaluateQuantumClassifier(
+    X_train, X_test, y_train, y_test, weights, quantum_classifier, state_names
+) -> dict:
     """
     Evaluate the trained quantum classifier.
 
@@ -299,18 +353,19 @@ def evaluateQuantumClassifier(X_train, X_test, y_train, y_test, weights, quantum
     Returns:
         dict: Evaluation results and metrics
     """
+
     def quantum_predict(X_data, weights):
         """Generate predictions using trained quantum classifier"""
-        predictions = []
+        nQubits = X_data.shape[1]
+        nCircuit = 3 * nQubits
+        circuitWeights = weights[:nCircuit]
+        projWeights = np.array(weights[nCircuit:]).reshape(nQubits, len(state_names))
 
+        predictions = []
         for x in X_data:
-            expvals = np.array(quantum_classifier(x, weights))
-            # Map multi-qubit expectations to class prediction via argmax
-            nQubits = len(expvals)
-            classScores = np.zeros(len(state_names))
-            for c in range(len(state_names)):
-                qubitIdx = c % nQubits
-                classScores[c] = (expvals[qubitIdx] + 1) / 2
+            expvals = np.array(quantum_classifier(x, circuitWeights))
+            # Learned linear projection to class scores
+            classScores = (expvals @ projWeights + 1.0) / 2.0
             classPred = int(np.argmax(classScores))
             predictions.append(classPred)
 
@@ -339,7 +394,7 @@ def evaluateQuantumClassifier(X_train, X_test, y_train, y_test, weights, quantum
     state_accuracies = {}
     for state_id, state_name in enumerate(state_names):
         # Find test samples for this state
-        state_mask = (y_test == state_id)
+        state_mask = y_test == state_id
         if np.sum(state_mask) > 0:
             state_predictions = y_test_pred[state_mask]
             state_accuracy = np.mean(state_predictions == state_id)
@@ -351,7 +406,7 @@ def evaluateQuantumClassifier(X_train, X_test, y_train, y_test, weights, quantum
     randomBaseline = 1.0 / len(state_names)
 
     # SVM baseline
-    svmClassifier = SVC(kernel='rbf', random_state=42)
+    svmClassifier = SVC(kernel="rbf", random_state=42)
     svmClassifier.fit(X_train, y_train)
     svmAccuracy = accuracy_score(y_test, svmClassifier.predict(X_test))
 
@@ -375,10 +430,10 @@ def evaluateQuantumClassifier(X_train, X_test, y_train, y_test, weights, quantum
 
     # Circuit complexity analysis
     circuit_complexity = {
-        'n_parameters': len(weights),
-        'n_qubits': X_test.shape[1],
-        'circuit_depth': 4,  # Encoding + 2 variational + measurement
-        'gate_count_per_sample': 3 * X_test.shape[1] + 2 * (X_test.shape[1] - 1) + 2  # Approximate
+        "n_parameters": len(weights),
+        "n_qubits": X_test.shape[1],
+        "circuit_depth": 4,  # Encoding + 2 variational + measurement
+        "gate_count_per_sample": 3 * X_test.shape[1] + 2 * (X_test.shape[1] - 1) + 2,  # Approximate
     }
 
     print("\nQuantum Circuit Complexity:")
@@ -387,23 +442,24 @@ def evaluateQuantumClassifier(X_train, X_test, y_train, y_test, weights, quantum
 
     # Store results for further analysis
     results = {
-        'weights': weights,
-        'train_accuracy': train_accuracy,
-        'test_accuracy': test_accuracy,
-        'state_accuracies': state_accuracies,
-        'quantum_improvement': quantum_improvement,
-        'svm_accuracy': svmAccuracy,
-        'rf_accuracy': rfAccuracy,
-        'svm_comparison': svmComparison,
-        'rf_comparison': rfComparison,
-        'circuit_complexity': circuit_complexity,
-        'state_names': state_names,
-        'X_test': X_test,
-        'y_test': y_test,
-        'y_test_pred': y_test_pred
+        "weights": weights,
+        "train_accuracy": train_accuracy,
+        "test_accuracy": test_accuracy,
+        "state_accuracies": state_accuracies,
+        "quantum_improvement": quantum_improvement,
+        "svm_accuracy": svmAccuracy,
+        "rf_accuracy": rfAccuracy,
+        "svm_comparison": svmComparison,
+        "rf_comparison": rfComparison,
+        "circuit_complexity": circuit_complexity,
+        "state_names": state_names,
+        "X_test": X_test,
+        "y_test": y_test,
+        "y_test_pred": y_test_pred,
     }
 
     return results
+
 
 if __name__ == "__main__":
     # Demonstration of variational quantum classifier
@@ -431,5 +487,9 @@ if __name__ == "__main__":
     print("\n=== Training Summary ===")
     print("Converged after 100 iterations")
     print(f"Final classification accuracy: {results['test_accuracy']:.1%}")
-    print(f"Best performing state: {max(results['state_accuracies'], key=results['state_accuracies'].get)}")
+    bestState = max(
+        results["state_accuracies"],
+        key=results["state_accuracies"].get,
+    )
+    print(f"Best performing state: {bestState}")
     print(f"Quantum advantage achieved: {results['quantum_improvement']:.1f}x over random baseline")
