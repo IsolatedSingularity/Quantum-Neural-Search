@@ -36,3 +36,11 @@ Thumbs.db
 htmlcov/
 .coverage
 .coverage.*
+
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
