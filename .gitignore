@@ -44,3 +44,7 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
+
+# Kilo Code
+.kilo/node_modules/
+.kilo/worktrees/
